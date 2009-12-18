@@ -20,7 +20,7 @@
 
 
 
-module Data.TrieFamily (HasTrie(..)) where
+module Data.TrieFamily (HasTrie(..), elems) where
 
 import Control.Arrow
 import Control.Monad
@@ -41,6 +41,11 @@ class HasTrie a where
   lookup :: a -> (a :->: b) -> Maybe b
   insert :: a -> b -> a :->: b -> a :->: b
   toList :: a :->: b -> [(a,b)]
+  size   :: a :->: b -> Int
+  size = length . toList
+
+elems :: HasTrie a => a :->: x -> [x]
+elems = map snd . toList
 
 instance HasTrie a => Monoid (a :->: x) where
   mempty = empty
@@ -73,6 +78,7 @@ instance HasTrie Char where
   lookup a (CharTrie m) = IntMap.lookup (ord a) m
   insert k v (CharTrie m) = CharTrie $ IntMap.insert (ord k) v m
   toList (CharTrie m) = map (first chr) (IntMap.toList m)
+  size (CharTrie m) = IntMap.size m
 
 instance HasTrie Int where
   newtype Int :->: x = IntTrie (IntMap x)
@@ -80,6 +86,7 @@ instance HasTrie Int where
   lookup a (IntTrie m)   = IntMap.lookup a m
   insert k v (IntTrie m) = IntTrie $ IntMap.insert k v m
   toList (IntTrie m)     = IntMap.toList m
+  size (IntTrie m) = IntMap.size m
 
 instance HasTrie a => HasTrie (Maybe a) where
   data Maybe a :->: x = MaybeTrie !(Maybe x) !(a :->: x)
@@ -125,6 +132,8 @@ instance (HasTrie a, HasTrie b, HasTrie c) => HasTrie (a,b,c) where
                                          , (b, mc) <- toList mb
                                          , (c, v ) <- toList mc]
 
+  size (TripleTrie m) = sum (map size (elems m))
+
 instance HasTrie () where
   newtype () :->: b = UnitTrie (Maybe b)
   empty = UnitTrie Nothing
@@ -134,18 +143,20 @@ instance HasTrie () where
   toList (UnitTrie (Just x))= [((),x)]
 
 instance HasTrie a => HasTrie [a] where
-  newtype [a] :->: x = ListTrie (Either () (a,[a]) :->: x)
-  empty = ListTrie empty
-  lookup k (ListTrie t) = lookup (delist k) t
-  insert k v (ListTrie t) = ListTrie $ insert (delist k) v t
-  toList (ListTrie m) = enum' list m
-
-list = const [] `either` uncurry (:)
-delist []     = Left  ()
-delist (x:xx) = Right (x,xx)
+  data [a] :->: x = ListTrie (Maybe x) ((a,[a]) :->: x)
+  empty = ListTrie Nothing empty
+  lookup [] (ListTrie nil _) = nil
+  lookup xx (ListTrie _ t) = lookup (decons xx) t
+  insert [] v (ListTrie _   t) = ListTrie (Just v) t
+  insert k  v (ListTrie nil t) = ListTrie nil $ insert (decons k) v t
+  toList (ListTrie nil m) = let rest = enum' cons m in maybe rest (\n -> ([], n) : rest) nil
+  size (ListTrie Nothing t) = size t
+  size (ListTrie Just{}  t) = size t + 1
 
 -- Extracted from Data.MemoTrie
 -- (c) Conal Elliott 2008
 enum' :: (HasTrie a) => (a -> a') -> (a :->: b) -> [(a', b)]
 enum' f = (fmap.first) f . toList
 
+cons = uncurry (:)
+decons (x:xx) = (x,xx)

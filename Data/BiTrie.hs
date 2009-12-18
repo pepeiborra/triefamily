@@ -24,7 +24,8 @@ module Data.BiTrie (
   lookupR,
   insert,
   toList,
-  elems
+  elems,
+  size
  ) where
 
 import Data.Monoid
@@ -49,6 +50,8 @@ toList (BiTrie a _) = Trie.toList a
 
 elems  :: HasTrie a => a :<->: b -> [b]
 elems = map snd . toList
+
+size (BiTrie a b) = Trie.size a
 
 instance (HasTrie a, HasTrie b) => Monoid (a :<->: b) where
   mempty = BiTrie Trie.empty Trie.empty
