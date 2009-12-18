@@ -20,9 +20,11 @@
 module Data.BiTrie (
   HasTrie,
   (:<->:),
+  empty,
   lookup,
   lookupR,
   insert,
+  fromList,
   toList,
   elems,
   size
@@ -35,6 +37,9 @@ import Prelude hiding (lookup)
 
 data a :<->: b = BiTrie (a :->: b) (b :->: a) deriving (Eq, Ord, Show)
 
+empty :: (HasTrie a, HasTrie b) => a :<->: b
+empty = BiTrie Trie.empty Trie.empty
+
 lookup :: HasTrie a => a -> a :<->: b -> Maybe b
 lookup a (BiTrie t _) = Trie.lookup a t
 
@@ -44,6 +49,9 @@ lookupR b (BiTrie _ tr) = Trie.lookup b tr
 insert :: (HasTrie a, HasTrie b) => a -> b -> a :<->: b -> a :<->: b
 insert a b (BiTrie t tr) = BiTrie (Trie.insert a b t)
                                   (Trie.insert b a tr)
+
+fromList :: (HasTrie a, HasTrie b) => [(a,b)] -> a :<->: b
+fromList = foldr (uncurry insert) empty
 
 toList :: HasTrie a => a :<->: b -> [(a,b)]
 toList (BiTrie a _) = Trie.toList a

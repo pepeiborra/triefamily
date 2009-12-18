@@ -20,7 +20,7 @@
 
 
 
-module Data.TrieFamily (HasTrie(..), elems) where
+module Data.TrieFamily (HasTrie(..), elems, fromList) where
 
 import Control.Arrow
 import Control.Monad
